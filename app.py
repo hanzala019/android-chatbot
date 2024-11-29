@@ -2,135 +2,198 @@ from flask import Flask, request, jsonify
 from datetime import datetime
 from flask_cors import CORS
 import os
-import pymysql
 from dotenv import load_dotenv
-
-
-load_dotenv()  # Load variables from .env file
-
-# Configure OpenAI (SambaNova API)
+import google.generativeai as genai
+genai.configure(api_key=os.getenv("GENEI_KEY"))
+load_dotenv()
 import openai
-openai.api_key = os.getenv("OPENAI_API_KEY")  # Use environment variables for security
-base_url = os.getenv("OPENAI_BASE_URL", "https://api.sambanova.ai/v1")  # Default to SambaNova's base URL
 
-# Function to interact with the OpenAI Llama model
+c = openai.OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("OPENAI_BASE_URL"),
+)
 def askLlama(chunk):
-    response = openai.ChatCompletion.create(
-        model="Meta-Llama-3.1-70B-Instruct",
-        messages=[
-            {"role": "system", "content": "You are a helpful AI assistant."},
-            {"role": "user", "content": chunk},
-        ],
-        temperature=0.1,
-        top_p=0.1,
+    response = c.chat.completions.create(
+        model='Meta-Llama-3.1-70B-Instruct',
+        messages=[{"role":"system","content":""" You are a helpful AI assistant  """},{"role":"user","content":f"""{chunk}"""}],
+        temperature =  0.1,
+        top_p = 0.1
     )
     return response.choices[0].message.content
 
-# Flask app setup
 app = Flask(__name__)
 CORS(app)
+# MySQL Configuration
+import pymysql
 
-# Database configuration
 timeout = 10
 connection = pymysql.connect(
-    charset="utf8mb4",
-    connect_timeout=timeout,
-    cursorclass=pymysql.cursors.DictCursor,
-    db=os.getenv("DB_NAME"),  # Environment variable for DB name
-    host=os.getenv("DB_HOST"),  # Environment variable for DB host
-    password=os.getenv("DB_PASSWORD"),  # Environment variable for DB password
-    read_timeout=timeout,
-    port=int(os.getenv("DB_PORT", 3306)),  # Default to port 3306
-    user=os.getenv("DB_USER"),  # Environment variable for DB user
-    write_timeout=timeout,
+  charset="utf8mb4",
+  connect_timeout=timeout,
+  cursorclass=pymysql.cursors.DictCursor,
+  host=os.getenv("DB_HOST"),
+  user=os.getenv("DB_USER"),
+  password=os.getenv("DB_PASSWORD"),
+  database=os.getenv("DB_NAME"),
+  port=int(os.getenv("DB_PORT")),
+  write_timeout=timeout,
 )
 
-# Database helper functions
+
+
 def getAll(query, params=None):
-    with connection.cursor() as cursor:
-        cursor.execute(query, params) if params else cursor.execute(query)
-        return cursor.fetchall()
+    cursor = connection.cursor()
+    if params:
+        cursor.execute(query, params)  # Execute with parameters
+    else:
+        cursor.execute(query)  # Execute without parameters
+    results = cursor.fetchall()
+    cursor.close()
+    return results
 
 def insert(query, values):
-    with connection.cursor() as cursor:
-        cursor.execute(query, values)
-        connection.commit()
+    cursor = connection.cursor()
+    cursor.execute(query, values)  # Pass the query and the values separately
+    connection.commit()
+    cursor.close()
+    return "success"
 
 def delete(query, params):
-    with connection.cursor() as cursor:
-        cursor.execute(query, params)
-        connection.commit()
+    cursor = connection.cursor()
+    try:
+        cursor.execute(query, params)  # Execute query with params
+        connection.commit()      # Commit the changes
+    except Exception as e:
+        print(f"Database error: {e}")
+        connection.rollback()    # Rollback in case of error
+        raise e
+    finally:
+        cursor.close()
 
-def rename(query, values):
-    with connection.cursor() as cursor:
-        cursor.execute(query, values)
-        connection.commit()
+def rename(query, val):
+        try:
+            cursor = connection.cursor()
+            
+            cursor.execute(query,val )  # Safely execute with parameters
+            connection.commit()  # Commit changes to the database
+        except Exception as e:
+            print(f"Error renaming session: {e}")
+            connection.rollback()  # Rollback if there's an error
+            return jsonify({"error": "Error renaming session"}), 500
+        finally:
+            cursor.close()
 
-# Routes
+
 @app.route("/home", methods=["GET"])
 def index():
+    
     sessions = getAll("SELECT id, name FROM sessions")
-    return jsonify({"success": True, "sessions": sessions}), 200
+    
+    return jsonify({"success": True, "sessions":sessions}), 200
 
-@app.route("/new_chat", methods=["POST"])
+
+
+
+@app.route('/new_chat', methods=['POST'])
 def new_chat():
     chatname = request.json.get("chatname")
+
     if not chatname:
         return jsonify({"error": "Chat name is required"}), 400
-    insert("INSERT INTO sessions (name) VALUES (%s)", (chatname,))
+
+    query = "INSERT INTO sessions (`name`) VALUES (%s)"
+    
+    try:
+        insert(query, (chatname,))  # Pass query and values separately
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
     return jsonify({"success": True}), 200
 
-@app.route("/delete_chat", methods=["POST"])
+
+
+
+@app.route('/delete_chat', methods=['POST'])
 def delete_chat():
-    session_id = request.json.get("session_id")
-    if not session_id:
-        return jsonify({"error": "Session ID not provided"}), 400
-    delete("DELETE FROM sessions WHERE id = %s", (session_id,))
-    return jsonify({"success": True}), 200
+    session_id = request.json.get('session_id')
+    if session_id is None:
+        return jsonify({"error": "Session ID not provided"}), 400  # Handle missing session ID
 
-@app.route("/rename_chat", methods=["POST"])
+    try:
+        delete_query = "DELETE FROM sessions WHERE id = %s"
+        delete(delete_query, (session_id,))  # Pass session_id as a tuple to avoid SQL injection
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        print(f"Error deleting session: {e}")
+    
+        return jsonify({"error": "Error deleting session"}), 500
+
+
+
+
+@app.route('/rename_chat', methods=['POST'])
 def rename_chat():
-    session_id = request.json.get("session_id")
-    new_name = request.json.get("new_name")
+    session_id = request.json.get('session_id')
+    new_name = request.json.get('new_name')
+    query = "UPDATE sessions SET name = %s WHERE id = %s"
+    val = (new_name, session_id)
     if not session_id or not new_name:
-        return jsonify({"error": "Session ID or new name not provided"}), 400
-    rename("UPDATE sessions SET name = %s WHERE id = %s", (new_name, session_id))
-    return jsonify({"success": True}), 200
+        return jsonify({"error": "Session ID or new name not provided"}), 400  # Handle missing data
 
-@app.route("/send_message", methods=["POST"])
+    else:
+        rename(query, val)
+
+    return jsonify({"success": True}), 200  # Return success response
+
+@app.route('/send_message', methods=['POST'])
 def send_message():
     then = datetime.now()
-    session_id = request.json.get("session_id")
-    message = request.json.get("message")
-    if not session_id or not message:
-        return jsonify({"error": "Session ID or message not provided"}), 400
+    history = []
+    
+    session_id = request.json.get('session_id')  # Get the session ID
+    message = request.json.get('message')  # Get the user message
 
-    history = getAll("SELECT userText, modelText FROM chat WHERE sessionId = %s", (session_id,))
-    history_formatted = [{"userPrompt": h["userText"], "System": h["modelText"]} for h in history]
+    
+    print("message from app: ", message)
 
-    mesg = f"""
-        "PreviousConversation": {history_formatted},
+    results = getAll("SELECT * from chat WHERE sessionId = %s", (session_id,))
+    for result in results:
+        history.append({"userPrompt": result["userText"], "System": result["modelText"]})
+    
+    mesg= f"""
+        "PreviousConversation": {history},
         "UserPrompt": {message}
     """
     response = askLlama(mesg)
 
     now = datetime.now()
-    elapsed_time = int((now - then).total_seconds())
+    time = now - then
+    time = int(time.total_seconds())
+    print("Time taken in seconds: ", time)
 
-    insert(
-        "INSERT INTO chat (sessionid, userText, modelText, context, time) VALUES (%s, %s, %s, %s, %s)",
-        (session_id, message, response, "android", elapsed_time),
-    )
-    return jsonify({"success": True, "session_id": session_id, "response": response}), 200
+    
+    # Insert user message into the chat table
+    insert("INSERT INTO chat (sessionid, userText, modelText,context,time) VALUES (%s, %s, %s, %s, %s)",(session_id, message, response,"android", time))
 
-@app.route("/conversation", methods=["POST"])
+    
+    return jsonify({"success": True, "session_id": session_id, "results": results, "modelText": response}), 200  # Return the updated conversation
+
+
+
+@app.route('/conversation', methods=['POST'])
 def conversation():
     session_id = request.json.get("session_id")
-    if not session_id:
-        return jsonify({"error": "Session ID not provided"}), 400
-    results = getAll("SELECT * FROM chat WHERE sessionId = %s", (session_id,))
+    
+    # Use a parameterized query instead of f-string
+    results = getAll("SELECT * from chat WHERE sessionId = %s", (session_id,))
+    
     return jsonify({"success": True, "session_id": session_id, "results": results}), 200
 
-# Start the app
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))  # Use PORT env variable for Render
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+
+
+
+
+
