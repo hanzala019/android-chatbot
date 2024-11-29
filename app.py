@@ -3,6 +3,10 @@ from datetime import datetime
 from flask_cors import CORS
 import os
 import pymysql
+from dotenv import load_dotenv
+
+
+load_dotenv()  # Load variables from .env file
 
 # Configure OpenAI (SambaNova API)
 import openai
