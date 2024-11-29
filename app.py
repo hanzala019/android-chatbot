@@ -4,12 +4,12 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
-genai.configure(api_key=os.getenv("GENEI_KEY"))
+genai.configure(api_key="AIzaSyCJltkxManMujnMpI0vlusMDqVuUVeOxnQ")
 load_dotenv()
 import openai
 
 c = openai.OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key="de6a8d51-609f-4b8f-a8a1-657f8e547af6",
     base_url=os.getenv("OPENAI_BASE_URL"),
 )
 def askLlama(chunk):
