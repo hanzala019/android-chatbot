@@ -84,7 +84,10 @@ def rename(query, val):
         finally:
             cursor.close()
 
-
+@app.route("/")
+def home():
+    return "Hello, World!"
+    
 @app.route("/home", methods=["GET"])
 def index():
     
