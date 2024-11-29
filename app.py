@@ -3,25 +3,20 @@ from datetime import datetime
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-# import google.generativeai as genai
-# genai.configure(api_key="AIzaSyCJltkxManMujnMpI0vlusMDqVuUVeOxnQ")
+import google.generativeai as genai
+genai.configure(api_key=os.getenv("GENEI_KEY"))
 load_dotenv()
 # import openai
+model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
 # c = openai.OpenAI(
 #     api_key="de6a8d51-609f-4b8f-a8a1-657f8e547af6",
 #     base_url=os.getenv("OPENAI_BASE_URL"),
 # )
-# def askLlama(chunk):
-#     response = c.chat.completions.create(
-#         model='Meta-Llama-3.1-70B-Instruct',
-#         messages=[{"role":"system","content":""" You are a helpful AI assistant  """},{"role":"user","content":f"""{chunk}"""}],
-#         temperature =  0.1,
-#         top_p = 0.1
-#     )
-#     return response.choices[0].message.content
-def askLlama(chunk):
-    print(chunk)
+def askLlama(prompt):
+    response = model.generate_content(prompt)
+    return response.text
+
 app = Flask(__name__)
 CORS(app)
 # MySQL Configuration
@@ -84,10 +79,7 @@ def rename(query, val):
         finally:
             cursor.close()
 
-@app.route("/")
-def home():
-    return "Hello, World!"
-    
+
 @app.route("/home", methods=["GET"])
 def index():
     
@@ -192,7 +184,6 @@ def conversation():
     results = getAll("SELECT * from chat WHERE sessionId = %s", (session_id,))
     
     return jsonify({"success": True, "session_id": session_id, "results": results}), 200
-
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5000))  # Use PORT from environment or default to 5000
