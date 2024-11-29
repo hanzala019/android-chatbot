@@ -3,24 +3,25 @@ from datetime import datetime
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai
-genai.configure(api_key="AIzaSyCJltkxManMujnMpI0vlusMDqVuUVeOxnQ")
+# import google.generativeai as genai
+# genai.configure(api_key="AIzaSyCJltkxManMujnMpI0vlusMDqVuUVeOxnQ")
 load_dotenv()
-import openai
+# import openai
 
-c = openai.OpenAI(
-    api_key="de6a8d51-609f-4b8f-a8a1-657f8e547af6",
-    base_url=os.getenv("OPENAI_BASE_URL"),
-)
+# c = openai.OpenAI(
+#     api_key="de6a8d51-609f-4b8f-a8a1-657f8e547af6",
+#     base_url=os.getenv("OPENAI_BASE_URL"),
+# )
+# def askLlama(chunk):
+#     response = c.chat.completions.create(
+#         model='Meta-Llama-3.1-70B-Instruct',
+#         messages=[{"role":"system","content":""" You are a helpful AI assistant  """},{"role":"user","content":f"""{chunk}"""}],
+#         temperature =  0.1,
+#         top_p = 0.1
+#     )
+#     return response.choices[0].message.content
 def askLlama(chunk):
-    response = c.chat.completions.create(
-        model='Meta-Llama-3.1-70B-Instruct',
-        messages=[{"role":"system","content":""" You are a helpful AI assistant  """},{"role":"user","content":f"""{chunk}"""}],
-        temperature =  0.1,
-        top_p = 0.1
-    )
-    return response.choices[0].message.content
-
+    print(chunk)
 app = Flask(__name__)
 CORS(app)
 # MySQL Configuration
