@@ -280,7 +280,7 @@ def index():
     userId = request.json.get("userId")
     sessions = getAll("SELECT id, name, userId FROM sessions WHERE userId = %s", (userId,))
     
-    return jsonify({"success": True, "sessions":sessions}), 200
+    return jsonify({"success": True, "sessions":sessions, "userId": userId}), 200
 
 
 
