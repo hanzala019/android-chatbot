@@ -274,7 +274,7 @@ def rename(query, val):
         finally:
             cursor.close()
 
-user = None
+userId = None
 
 @app.route('/login', methods=["POST"])
 def login():
@@ -292,7 +292,7 @@ def login():
 
 @app.route("/home", methods=["POST"])
 def index():
-    userId = request.json.get("userId")
+    global userId 
     sessions = getAll("SELECT id, name, userId FROM sessions WHERE userId = %s", (userId,))
     
     return jsonify({"success": True, "sessions":sessions, "userId": userId}), 200
