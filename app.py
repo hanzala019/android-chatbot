@@ -222,11 +222,11 @@ connection = pymysql.connect(
   charset="utf8mb4",
   connect_timeout=timeout,
   cursorclass=pymysql.cursors.DictCursor,
-  host="localhost",
-  user="user",
-  password="",
-  database="chatbot",
-  port=3306,
+  host=os.getenv("DB_HOST"),
+  user=os.getenv("DB_USER"),
+  password=os.getenv("DB_PASSWORD"),
+  database=os.getenv("DB_NAME"),
+  port=int(os.getenv("DB_PORT")),
   write_timeout=timeout,
 )
 
