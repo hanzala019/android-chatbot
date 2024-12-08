@@ -274,6 +274,21 @@ def rename(query, val):
         finally:
             cursor.close()
 
+user = None
+
+@app.route('/login', methods=["POST"])
+def login():
+    username = request.json.get('username')
+    password = request.json.get('password')
+    results = getAll("SELECT * from users WHERE username = %s AND password = %s", (username, password))
+    print(results)
+    flag = False
+    global userId
+    if results:
+        userId = results[0]["uId"]
+        flag = True
+    print(flag)
+    return jsonify({"success": flag, "userId": userId}), 200
 
 @app.route("/home", methods=["POST"])
 def index():
@@ -323,7 +338,6 @@ def delete_chat():
 
 
 
-
 @app.route('/rename_chat', methods=['POST'])
 def rename_chat():
     session_id = request.json.get('session_id')
@@ -338,19 +352,6 @@ def rename_chat():
 
     return jsonify({"success": True}), 200  # Return success response
 
-@app.route('/login', methods=["POST"])
-def login():
-    username = request.json.get('username')
-    password = request.json.get('password')
-    results = getAll("SELECT * from users WHERE username = %s AND password = %s", (username, password))
-    print(results)
-    flag = False
-    userId = ""
-    if results:
-        userId = results[0]["uId"]
-        flag = True
-    print(flag)
-    return jsonify({"success": flag, "userId": userId}), 200
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
