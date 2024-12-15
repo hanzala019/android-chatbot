@@ -3,5 +3,6 @@ Flask-Cors==5.0.0
 google-generativeai==0.8.3
 openai==0.27.0
 PyMySQL==1.1.1
+cryptography
 gunicorn==20.1.0
 python-dotenv
